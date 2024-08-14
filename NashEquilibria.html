@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nash Equilibrium Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            user-select: none;
+        }		
+		.title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }		
+		.bottom-text {
+			font-size: 14px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            width: 100%;
+        }		
+        .container {
+            background-color: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 1100px;
+            margin-top: 10px;
+        }
+        .content {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            justify-content: space-between;
+            margin-top: 0px;
+        }
+        .left-column, .right-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }    
+        .input-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .input-row label {
+            margin-right: 10px;
+        }		
+		.input-row input[type="number"] {
+            flex: 1;
+            min-width: 0;
+            width: auto;
+            text-align: center;
+            margin-left: 5px;
+			padding: 2px; font-size: inherit;
+        }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: auto;
+        }   
+        button {
+            width: 100%;
+            margin-top: 10px;
+			font-size: 18px;
+        }
+
+        table { border-collapse: collapse; margin-bottom: 20px; margin-top: 10px; font-size: 18px; style="color: blue; text-align: center;"}
+        th { border: none; padding: 12px; text-align: center; font-weight: bold; }
+        th:first-child { padding-left: 0px; width: 20px; font-size: 24px;}
+		tr:first-child { padding-left: 0px; width: 0px; font-size: 24px;}
+        td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        .payoff input { width: 60px; padding: 4px; font-size: inherit; text-align: center;}
+        .payoff { display: flex; justify-content: space-between; gap: 10px; }
+        .payoff input:first-child { color: red; }
+        .payoff input:last-child { color: blue; }
+    </style>
+</head>
+<body>	
+<div class="title">Nash Equilibria 计算器</div>
+<div class="container">
+    <div class="content">
+        <div class="left-column">
+            <div class="input-row">
+				<label for="matrixRows">矩阵行数：</label>
+				<input type="number" id="matrixRows" min="2" max="6" value="2" step="1" oninput="validity.valid||(value='2');" onkeydown="return false;">
+				<div style="margin-right: 80px;"></div>             
+				<label for="matrixCols">矩阵列数：</label>
+				<input type="number" id="matrixCols" min="2" max="6" value="2" step="1" oninput="validity.valid||(value='2');" onkeydown="return false;">
+            </div>	
+			<div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
+				<button onclick="createMatrix()" style="height: 40px;">生成矩阵</button>
+				<button onclick="setRandomValues()" style="height: 40px;">随机赋值</button>
+			</div>
+			<div style="margin-top: 20px;"></div>
+			<div style="display: flex; flex-direction: row; justify-content: center; font-weight: bold; font-size: 18px;">（<span style="color: red;">&nbsp;红色: Player 1&nbsp;</span>&nbsp;<span style="color: blue;">&nbsp;蓝色: Player 2&nbsp;</span>）</div>
+
+            <div id="bimatrix" style="display: grid; justify-content: center; text-align: center;"></div>
+			<button onclick="calculateNashEquilibria()" style="height: 40px;">计&nbsp;&nbsp;算</button>
+
+            <div id="result" style="margin-left: 50px; margin-right: 50px; line-height: 1.5;"></div>
+        </div>	
+	</div>
+</div>
+
+<div class="bottom-text">
+    Copyright © 2024 XuXiaochun. All rights reserved.
+	<div style="margin-top: 20px;"></div> 
+</div>
+    
+<script>
+	const defaultMatrices = {
+		2: {
+			1: [9, 0, 8, 7],
+            2: [9, 8, 0, 7]
+           },
+        3: {
+            1: [0, -1, 1, 1, 0, -1, -1, 1, 0],
+            2: [0, 1, -1, -1, 0, 1, 1, -1, 0]
+           }
+    };
+
+    const rowLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    const colLabels = ['X', 'Y', 'Z', 'W', 'U', 'V', 'T', 'S', 'R', 'Q'];
+
+    function createMatrix() {
+		const rows = parseInt(document.getElementById('matrixRows').value);
+        const cols = parseInt(document.getElementById('matrixCols').value);
+
+        let bimatrixHtml = '<table>';
+		bimatrixHtml += '<tr><th></th>' + colLabels.slice(0, cols).map(label => `<th><span style="color: blue;">${label}</span></th>`).join('') + '</tr>';
+
+        for (let i = 0; i < rows; i++) {
+			bimatrixHtml += `<tr><th><span style="color: red;">${rowLabels[i]}</span></th>`;
+			for (let j = 0; j < cols; j++) {
+				let defaultValue1 = '0';
+				let defaultValue2 = '0';
+				if (rows === 2 && cols === 2) {
+					defaultValue1 = defaultMatrices[2][1][i * 2 + j];
+					defaultValue2 = defaultMatrices[2][2][i * 2 + j];
+                } else if (rows === 3 && cols === 3) {
+					defaultValue1 = defaultMatrices[3][1][i * 3 + j];
+					defaultValue2 = defaultMatrices[3][2][i * 3 + j];
+                }
+				bimatrixHtml += `<td><div class="payoff">
+				<input type="number" id="m1_${i}_${j}" value="${defaultValue1}">
+				<input type="number" id="m2_${i}_${j}" value="${defaultValue2}">
+				</div></td>`;
+            }
+            bimatrixHtml += '</tr>';
+        }
+		bimatrixHtml += '</table>';
+		document.getElementById('bimatrix').innerHTML = bimatrixHtml;
+    }
+	
+	function setRandomValues() {
+		const rows = parseInt(document.getElementById('matrixRows').value);
+		const cols = parseInt(document.getElementById('matrixCols').value);
+
+		for (let i = 0; i < rows; i++) {
+			for (let j = 0; j < cols; j++) {
+				document.getElementById(`m1_${i}_${j}`).value = Math.floor(Math.random() * 10);
+				document.getElementById(`m2_${i}_${j}`).value = Math.floor(Math.random() * 10);
+			}
+		}
+	}
+
+    function calculateNashEquilibria() {
+		const rows = parseInt(document.getElementById('matrixRows').value);
+		const cols = parseInt(document.getElementById('matrixCols').value);
+		let m1 = [];
+		let m2 = [];
+
+		for (let i = 0; i < rows; i++) {
+			m1[i] = [];
+			m2[i] = [];
+			for (let j = 0; j < cols; j++) {
+				m1[i][j] = parseFloat(document.getElementById(`m1_${i}_${j}`).value);
+				m2[i][j] = parseFloat(document.getElementById(`m2_${i}_${j}`).value);
+			}
+		}
+
+		let nashEquilibria = [];
+		for (let i = 0; i < rows; i++) {
+			for (let j = 0; j < cols; j++) {
+				if (isPureNashEquilibrium(m1, m2, i, j, rows, cols)) {
+					nashEquilibria.push(`Pure strategy: &nbsp;&nbsp;( ${rowLabels[i]}, ${colLabels[j]} )`);
+				}
+			}
+		}
+
+		if (rows === 2 && cols === 2) {
+			const mixedEquilibrium = calculateMixedEquilibrium2x2(m1, m2);
+			if (mixedEquilibrium) {
+				nashEquilibria.push(`Mixed strategy: ${mixedEquilibrium}`);
+			}
+		}
+
+		let resultDiv = document.getElementById('result');
+		if (nashEquilibria.length > 0) {
+			resultDiv.innerHTML = "<h3>Nash Equilibria:</h3><ul>" + nashEquilibria.map(eq => `<li>${eq}</li>`).join('') + "</ul>";
+		} else {
+			resultDiv.innerHTML = "<h3>No Nash Equilibria found.<br>注：仅 2x2 支付矩阵计算 Mixed Strategy Nash Equilibrium.</h3>";
+		}
+	}
+
+	function isPureNashEquilibrium(m1, m2, row, col, rows, cols) {
+		for (let i = 0; i < rows; i++) {
+			if (m1[i][col] > m1[row][col]) return false;
+        }
+		for (let j = 0; j < cols; j++) {
+			if (m2[row][j] > m2[row][col]) return false;
+		}
+        return true;
+	}
+
+	function calculateMixedEquilibrium2x2(m1, m2) {
+		let p = (m2[1][1] - m2[1][0]) / (m2[0][0] - m2[0][1] - m2[1][0] + m2[1][1]);
+		let q = (m1[1][1] - m1[0][1]) / (m1[0][0] - m1[1][0] - m1[0][1] + m1[1][1]);
+
+		if (isNaN(p) || isNaN(q) || p < 0 || p > 1 || q < 0 || q > 1) {
+			return null;
+		}
+		return `<span style="color: red;">Player 1: </span>( ${rowLabels[0]}: ${p.toFixed(3)}, ${rowLabels[1]}: ${(1-p).toFixed(3)} ), ` +
+               `<span style="color: blue;">Player 2: </span>( ${colLabels[0]}: ${q.toFixed(3)}, ${colLabels[1]}: ${(1-q).toFixed(3)} )`;
+    }
+	
+    createMatrix();
+</script>
+</body>
+</html>
