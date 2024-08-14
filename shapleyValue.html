@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shapley Value Calculator 2024</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            user-select: none;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }		
+		.bottom-text {
+			font-size: 14px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            width: 100%;
+        }		
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 90%;
+            max-width: 1000px;
+            margin-top: 20px;
+        }
+        .content {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            justify-content: space-between;
+            margin-top: 0px;
+        }
+        .left-column, .right-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 50px;
+        }
+        .left-column {
+            border-right: 1px solid #ddd;
+        }
+        .input-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .input-row label {
+            margin-right: 10px;
+        }
+        .input-row input[type="number"] {
+            flex: 1;
+            min-width: 0;
+            width: auto;
+            text-align: left;
+            margin-left: 5px;
+        }		
+		.input-row input[type="text"] {
+            flex: 1;
+            min-width: 0;
+            width: auto;
+            text-align: left;
+            margin-left: 5px;
+        }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: auto;
+        }   
+        button {
+            width: 100%;
+            margin-top: 10px;
+        }
+        #inputs-container {
+            max-height: 300px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            margin-bottom: 10px;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0;
+        }
+        #inputs-container label {
+            text-align: right;
+        }
+        #inputs-container input[type="number"] {
+            width: 95%;
+            text-align: left;
+            margin-bottom: 10px;
+        }
+        #inputs-container input[type="number"]:first-child {
+            pointer-events: none;
+            background-color: #f0f0f0;
+        }
+        #inputs-container::-webkit-scrollbar {
+            width: 12px;
+        }
+        #inputs-container::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        #inputs-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.4);
+        }		
+		.simple-output {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="title">Shapley Value 计算器</div>
+<div class="container">
+    <div class="content">
+        <div class="left-column">
+            <div class="input-row">
+                <label for="players">参与人数量：</label>
+                <input type="number" id="players" min="1" value="3">
+            </div>
+            <button onclick="generateInputs()" style="height: 40px;">生成特征函数</button>
+			<div style="margin-top: 20px;"></div>
+            <div id="inputs-container"></div>
+        </div>
+        <div class="right-column">		
+			<div class="input-row">
+                <label for="simpleinputValue">快速模式：</label>
+				<input type="text" id="simpleinputValue" name="simpleinputValue" value="" title="" oninput="validateInput(this)">
+            </div>		
+            <button onclick="calculateShapley()" style="height: 40px;">计算</button>
+            <div id="results-container">
+				<table id="fastresults-table" style="display:none;">
+                    <thead>
+                        <tr style="background-color: #f0f0f0;">
+                            <th>Player</th>
+                            <th>Shapley Value</th>
+                        </tr>
+                    </thead>
+					<div style="margin-top: 20px;"></div> 
+                    <tbody id="fastresults-body"></tbody>
+                </table>				
+				<div style="margin-top: 20px;"></div> 		
+                <table id="results-table" style="display:none;">
+                    <thead>
+                        <tr style="background-color: #f0f0f0;">
+                            <th>参与人</th>
+                            <th>Shapley Value</th>
+                        </tr>
+                    </thead>
+					<div style="margin-top: 20px;"></div>
+                    <tbody id="results-body"></tbody>
+                </table>
+            </div>
+		</div>	
+        </div>
+    </div>
+</div>
+<div class="bottom-text">
+    Copyright © 2024 XuXiaochun. All rights reserved.
+	<div style="margin-top: 20px;"></div> 
+</div>
+<script>
+	function validateInput(input) {
+        input.value = input.value.replace(/[^0-9/\-.\s]/g, '');
+    }	
+	function createCoalitionSubsets() {
+		const numPlayers = parseInt(document.getElementById('players').value, 10);
+        const subsets = []; 
+        for (let size = 1; size <= numPlayers; size++) {
+            const comb = (set, size) => {
+                if (size > set.length) return []; 
+                if (size === set.length) return [set]; 
+                if (size === 1) return set.map(el => [el]); 
+                return set.reduce((acc, val, idx) => {
+                    const res = comb(set.slice(idx + 1), size - 1); 
+                    return acc.concat(res.map(comb => [val, ...comb])); 
+                }, []);
+            };
+            subsets.push(...comb([...Array(numPlayers).keys()], size));
+        }
+		return subsets;
+    }		
+    function generateInputs() {
+        const numPlayers = parseInt(document.getElementById('players').value, 10);
+        const container = document.getElementById('inputs-container');
+        container.innerHTML = '';
+        const createLabel = (subset) => {
+            return subset.map(idx => idx + 1).join(', ');
+        };
+        container.innerHTML += `<label for="value-empty" style="grid-column: 1; margin-top: 8px; text-align: right;">联盟&nbsp;&nbsp; [∅]：&nbsp;&nbsp;&nbsp;&nbsp;</label>`;
+        container.innerHTML += `<input type="number" id="value-empty" value="0" readonly style="grid-column: 2; margin-top: 10px; text-align: left; width: 80%;">`;
+		subsets = createCoalitionSubsets();
+        subsets.forEach(subset => {
+            const key = Array(numPlayers).fill('0'); 
+            subset.forEach(idx => key[idx] = '1'); 
+            const subsetKey = key.join(''); 
+            container.innerHTML += `<label for="value-${subsetKey}" style="grid-column: 1;">联盟&nbsp;&nbsp; [${createLabel(subset)}]：&nbsp;&nbsp;&nbsp;&nbsp;</label>`;
+            container.innerHTML += `<input type="number" id="value-${subsetKey}" step="any" style="grid-column: 2; width: 80%; ">`;
+        });
+    }
+    function calculateShapley() {
+        const numPlayers = parseInt(document.getElementById('players').value, 10);
+        const values = {};
+        const numSubsets = Math.pow(2, numPlayers);
+        for (let i = 1; i < numSubsets; i++) {
+            const subset = i.toString(2).padStart(numPlayers, '0');
+			try {
+				values[subset] = parseFloat(document.getElementById(`value-${subset}`).value);
+				}
+			catch (err) {
+				console.log( '特征函数生成错误' );
+				}            
+        }	
+		const inputValue = document.getElementById('simpleinputValue').value.trim();
+        let normalizedInput = inputValue.replace(/\s+/g, ' ');        
+        const fasttxtvalues = normalizedInput.trim().split(' ');   
+		const fastValues = {};
+		const coalitionSubsets = createCoalitionSubsets();
+		for (let i = 0; i < coalitionSubsets.length; i++) {
+			const fastsubset = coalitionSubsets[i];
+			const fastkey = Array(numPlayers).fill('0'); 
+            fastsubset.forEach(idx => fastkey[idx] = '1'); 
+            const fastsubsetKey = fastkey.join('');  
+			fastValues[fastsubsetKey] = parseFloat(fasttxtvalues[i]);
+		}
+        const factorial = (n) => (n <= 1 ? 1 : n * factorial(n - 1));
+        const calculateMarginalContribution = (subset, player, dataObj) => {
+            const withPlayer = subset | (1 << player);
+            const valueWithPlayer = dataObj[withPlayer.toString(2).padStart(numPlayers, '0')] || 0;
+            const valueWithoutPlayer = dataObj[subset.toString(2).padStart(numPlayers, '0')] || 0;
+            return valueWithPlayer - valueWithoutPlayer;
+        };
+        const calculateShapleyValue = (player, dataObj) => {
+            let shapleyValue = 0;
+            for (let subset = 0; subset < numSubsets; subset++) {
+                if ((subset & (1 << player)) === 0) {
+                    const subsetSize = subset.toString(2).split('1').length - 1;
+                    const marginalContribution = calculateMarginalContribution(subset, player, dataObj);
+                    shapleyValue += (factorial(subsetSize) * factorial(numPlayers - subsetSize - 1) / factorial(numPlayers)) * marginalContribution;
+                }
+            }
+            return shapleyValue;
+        };
+        const fastresultsBody = document.getElementById('fastresults-body');
+        fastresultsBody.innerHTML = '';
+		for (let ii = numPlayers - 1; ii >= 0; ii--) {
+            const fastplayerIndex = ii; 
+            const fastshapleyValue = calculateShapleyValue(fastplayerIndex, fastValues).toFixed(2);			
+            fastresultsBody.innerHTML += `<tr><td>Player ${numPlayers - ii}</td><td>${fastshapleyValue}</td></tr>`;
+        }
+		document.getElementById('fastresults-table').style.display = 'table';
+		const resultsBody = document.getElementById('results-body');
+        resultsBody.innerHTML = '';		
+        for (let i = numPlayers - 1; i >= 0; i--) {
+            const playerIndex = i; 
+            const shapleyValue = calculateShapleyValue(playerIndex, values).toFixed(6);
+            resultsBody.innerHTML += `<tr><td>参与人 ${numPlayers - i}</td><td>${shapleyValue}</td></tr>`;
+        }
+        document.getElementById('results-table').style.display = 'table';
+    }
+</script>
+</body>
+</html>
