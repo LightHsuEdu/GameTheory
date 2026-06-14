@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shapley Value Calculator 2026</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            user-select: none;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }		
+        .bottom-text {
+            font-size: 14px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            width: 100%;
+        }		
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 90%;
+            max-width: 1100px;
+            margin-top: 20px;
+        }
+        .content {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            justify-content: space-between;
+            margin-top: 0px;
+            align-items: flex-start; 
+        }
+        .left-column, .right-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 50px;
+            justify-content: flex-start;
+        }
+        .left-column {
+            border-right: 1px solid #ddd;
+        }
+        .input-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .input-row label {
+            margin-right: 10px;
+        }
+        .input-row input[type="number"] {
+            flex: 1;
+            min-width: 0;
+            width: auto;
+            text-align: left;
+            margin-left: 5px;
+        }		
+        .input-row input[type="text"] {
+            flex: 1;
+            min-width: 0;
+            width: auto;
+            text-align: left;
+            margin-left: 5px;
+        }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: auto;
+        }   
+        button {
+            width: 100%;
+            margin-top: 10px;
+        }
+        #inputs-container {
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            margin-bottom: 10px;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0;
+			padding-right: 15px;
+        }
+        #inputs-container label {
+            text-align: right;
+        }
+        #inputs-container input[type="text"] {
+            width: 95%;
+            text-align: left;
+            margin-bottom: 10px;
+        }
+        #inputs-container input[type="text"]:first-child {
+            pointer-events: none;
+            background-color: #f0f0f0;
+        }
+        #inputs-container::-webkit-scrollbar {
+            width: 12px;
+        }
+        #inputs-container::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        #inputs-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.4);
+        }		
+        .simple-output {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="title">Shapley Value 计算器</div>
+<div class="container">
+    <div class="content">
+        <div class="left-column">
+            <div class="input-row">
+                <label for="players">参与人数量：</label>
+				<input type="number" id="players" min="1" max="10" step="1" value="3">
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; width: 100%; margin: 15px 0;">
+            <div class="input-row">
+                <label for="simpleinputValue">快速模式：</label>
+                <input type="text" id="simpleinputValue" name="simpleinputValue" value="" placeholder="用空格分隔，支持分数" oninput="validateInput(this); syncFastToForm();">
+            </div>
+            <div style="font-size: 12px; color: #555; line-height: 1.5;">
+                <div>快速模式输入对应除空集外的所有联盟。</div>
+                <div>输入顺序：按联盟大小递增（{A},{B},...,{A,B},{A,C},...）。</div>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; width: 100%; margin: 15px 0;">
+            <button onclick="generateInputs()" style="height: 40px;">生成特征函数</button>
+            <div style="margin-top: 20px;"></div>
+            <div id="inputs-container"></div>
+        </div>
+        <div class="right-column">		
+            <button onclick="calculateShapley()" style="height: 40px; margin-top: 0;">计算</button>
+            <div id="results-container">
+                <table id="results-table" style="display:none; margin-top: 20px;">
+                    <thead>
+                        <tr style="background-color: #f0f0f0;">
+                            <th>参与人</th>
+                            <th>Shapley Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body"></tbody>
+                </table>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; width: 100%; margin: 25px 0;">
+            <div style="font-weight: bold; margin-bottom: 10px;">计算步骤 (Python Style)：</div>
+            <div id="python-output" style="width: 100%; height: 350px; overflow-y: auto; background-color: #f9f9f9; border: 1px solid #ccc; padding: 10px; font-family: monospace; font-size: 13px; white-space: pre-wrap; user-select: text;">点击“计算”后输出详细步骤...</div>
+        </div>	
+    </div>
+</div>
+<div class="bottom-text">
+    Copyright © 2026 XuXiaochun. All rights reserved.
+	<div style="margin-top: 20px;"></div>
+</div>
+<script>
+    let currentPlayers = 3;
+    function validateInput(input) {
+        input.value = input.value.replace(/[^0-9/\-.\s]/g, '');
+    }
+    function parseFractionStrict(raw) {
+        const s = String(raw ?? '').trim();
+        if (s === '') return 0;
+        const m = s.match(/^([+-]?\d+(?:\.\d+)?)(?:\/([+-]?\d+(?:\.\d+)?))?$/);
+        if (!m) return NaN;
+        const a = Number(m[1]);
+        if (!Number.isFinite(a)) return NaN;
+        if (!m[2]) return a;
+        const b = Number(m[2]);
+        if (!Number.isFinite(b) || b === 0) return NaN;
+        return a / b;
+    }
+    function gcdBigInt(a, b) {
+        a = a < 0n ? -a : a;
+        b = b < 0n ? -b : b;
+        while (b !== 0n) {
+            const t = a % b;
+            a = b;
+            b = t;
+        }
+        return a;
+    }
+    const factBigCache = [1n];
+    function factorialBig(n) {
+        for (let i = factBigCache.length; i <= n; i++) {
+            factBigCache[i] = factBigCache[i - 1] * BigInt(i);
+        }
+        return factBigCache[n];
+    }
+    const factCache = [1];
+    function factorial(n) {
+        for (let i = factCache.length; i <= n; i++) {
+            factCache[i] = factCache[i - 1] * i;
+        }
+        return factCache[n];
+    }
+    function formatNumber(x, digits = 4) {
+        if (!Number.isFinite(x)) return String(x);
+        return String(parseFloat(Number(x).toFixed(digits)));
+    }
+    function weightFractionStr(sSize, n) {
+        const num = factorialBig(sSize) * factorialBig(n - sSize - 1);
+        const den = factorialBig(n);
+        const g = gcdBigInt(num, den);
+        const nn = num / g;
+        const dd = den / g;
+        return dd === 1n ? `${nn}` : `${nn}/${dd}`;
+    }
+
+    function getPlayerName(i) {
+        return i < 26 ? String.fromCharCode(65 + i) : `P${i + 1}`;
+    }
+    function createCoalitionSubsets(numPlayers) {
+        const subsets = [];
+        for (let size = 1; size <= numPlayers; size++) {
+            const comb = (set, size) => {
+                if (size > set.length) return [];
+                if (size === set.length) return [set];
+                if (size === 1) return set.map(el => [el]);
+                return set.reduce((acc, val, idx) => {
+                    const res = comb(set.slice(idx + 1), size - 1);
+                    return acc.concat(res.map(c => [val, ...c]));
+                }, []);
+            };
+            subsets.push(...comb([...Array(numPlayers).keys()], size));
+        }
+        return subsets;
+    }
+    function getSubsetKey(subset, n) {
+        const key = Array(n).fill('0');
+        for (const idx of subset) key[idx] = '1';
+        return key.join('');
+    }
+    window.onload = function() {
+        generateInputs();
+    };
+    function generateInputs() {
+        let playerInput = document.getElementById('players');
+        let numPlayers = parseInt(playerInput.value, 10);
+        if (isNaN(numPlayers) || numPlayers < 1) {
+            numPlayers = 1; 
+            playerInput.value = 1; 
+        } 
+        else if (numPlayers > 10) {
+			alert("为防止浏览器卡顿，最大参与人数限制为 10");
+            numPlayers = 10; 
+            playerInput.value = 10;
+        }
+        currentPlayers = numPlayers;
+        const container = document.getElementById('inputs-container');
+        document.getElementById('simpleinputValue').value = '';
+        const createLabel = (subset) => subset.map(idx => getPlayerName(idx)).join(', ');
+        let htmlStrTmp = '';
+        htmlStrTmp += `<label for="value-empty" style="grid-column: 1; margin-top: 8px;">联盟&nbsp;&nbsp; [∅]：&nbsp;&nbsp;&nbsp;&nbsp;</label>`;
+        htmlStrTmp += `<input type="text" id="value-empty" value="0" readonly style="grid-column: 2; margin-top: 10px; background-color:#f0f0f0; pointer-events:none;">`;
+        const subsets = createCoalitionSubsets(currentPlayers);
+        subsets.forEach(subset => {
+            const subsetKey = getSubsetKey(subset, currentPlayers);
+            htmlStrTmp += `<label for="value-${subsetKey}" style="grid-column: 1;">联盟&nbsp;&nbsp; [${createLabel(subset)}]：&nbsp;&nbsp;&nbsp;&nbsp;</label>`;
+            htmlStrTmp += `<input type="text" id="value-${subsetKey}" oninput="validateInput(this); syncFormToFast();" style="grid-column: 2;">`;
+        });
+		container.innerHTML = htmlStrTmp;
+        document.getElementById('results-table').style.display = 'none';
+        document.getElementById('python-output').textContent = '点击“计算”后输出详细步骤...';
+    }
+    function syncFastToForm() {
+        const n = currentPlayers;
+        const fastStr = document.getElementById('simpleinputValue').value.trim();
+        const fastArr = fastStr.split(/\s+/).filter(x => x !== '');
+        const subsets = createCoalitionSubsets(n);
+        for (let i = 0; i < subsets.length; i++) {
+            const k = getSubsetKey(subsets[i], n);
+            const el = document.getElementById(`value-${k}`);
+            if (el) {
+                el.value = (fastArr[i] !== undefined && fastArr[i] !== "") ? fastArr[i] : "";
+            }
+        }
+    }
+    function syncFormToFast() {
+        const n = currentPlayers; 
+        const subsets = createCoalitionSubsets(n);
+        const parts = [];
+        for (let i = 0; i < subsets.length; i++) {
+            const k = getSubsetKey(subsets[i], n);
+            const el = document.getElementById(`value-${k}`);
+            const val = (el && el.value.trim() !== '') ? el.value.trim() : '0';
+            parts.push(val);
+        }
+        document.getElementById('simpleinputValue').value = parts.join(' ');
+    }
+    function calculateShapley() {
+        const n = currentPlayers;
+        const subsets = createCoalitionSubsets(n);
+        const values = {};
+        values['0'.repeat(n)] = 0;
+        for (const subset of subsets) {
+            const k = getSubsetKey(subset, n);
+            const el = document.getElementById(`value-${k}`);
+            const raw = el ? el.value.trim() : '';
+            if (raw === '') {
+                values[k] = 0;
+            } else {
+                const parsed = parseFractionStrict(raw);
+                if (!Number.isFinite(parsed)) {
+                    alert(`输入错误：无法解析联盟 ${subset.map(i=>getPlayerName(i))} 的值 "${raw}"`);
+                    return;
+                }
+                values[k] = parsed;
+            }
+        }
+        const denom = factorial(n);
+        const shapleys = Array(n).fill(0);
+        let log = `可转移效用博弈（Transferable Utility Games）\n`;
+        log += `-`.repeat(50) + `\n`;
+        const pNames = Array.from({length: n}, (_, i) => getPlayerName(i));
+        log += `参与人：\n  [${pNames.map(x=> `'${x}'`).join(', ')}]\n`;
+        const coalStr = subsets.map(s => `(${s.map(i => `'${getPlayerName(i)}'`).join(', ')}${s.length===1?',':''})`);
+        log += `联盟组合：\n  [${coalStr.join(', ')}]\n`;
+        const valStr = subsets.map(s => values[getSubsetKey(s, n)]);
+        log += `特征值：\n  [${valStr.join(', ')}]\n\n`;
+        for (let p = 0; p < n; p++) {
+            let shap = 0;
+            log += `计算参与人 '${getPlayerName(p)}' 的夏普利值：\n`;
+            log += `-`.repeat(40) + `\n`;
+            for (const coalition of subsets) {
+                if (coalition.includes(p)) continue; 
+                const coalWithout = coalition.slice().sort((a,b)=>a-b);
+                const coalWith = coalWithout.concat([p]).sort((a,b)=>a-b);
+                const keyWithout = getSubsetKey(coalWithout, n);
+                const keyWith = getSubsetKey(coalWith, n);
+                const vWithout = values[keyWithout] ?? 0;
+                const vWith = values[keyWith] ?? 0;
+                const marginal = vWith - vWithout;
+                const sSize = coalWithout.length;
+                const weight = (factorial(sSize) * factorial(n - sSize - 1)) / denom;
+                const contrib = marginal * weight;
+                shap += contrib;
+                log += `子联盟 (${coalWithout.map(i=>`'${getPlayerName(i)}'`).join(', ')}${coalWithout.length===1?',':''})：\n`;
+                log += `  不含 '${getPlayerName(p)}' 的特征值 = ${vWithout}\n`;
+                log += `  加入 '${getPlayerName(p)}' 的特征值 = ${vWith}\n`;
+                log += `  边际贡献 = ${vWith} - ${vWithout} = ${marginal}\n`;
+                log += `  权重 = ${sSize}! * (${n - sSize - 1})! / ${n}! = ${weightFractionStr(sSize, n)}\n`;
+                log += `  加权贡献 = ${marginal} * ${weightFractionStr(sSize, n)} = ${formatNumber(contrib, 4)}\n`;
+            }
+            const singleKey = getSubsetKey([p], n);
+            const vSingle = values[singleKey] ?? 0;
+            const contribSingle = vSingle * (1 / n);
+            shap += contribSingle;
+            log += `\n单人联盟 ('${getPlayerName(p)}',)：\n`;
+            log += `  特征值 = ${vSingle}\n`;
+            log += `  权重 = 1 / ${n} = 1/${n}\n`;
+            log += `  加权贡献 = ${vSingle} * 1/${n} = ${formatNumber(contribSingle, 4)}\n`;
+            log += `\n总夏普利值 = ${formatNumber(shap, 4)}\n`;
+            log += `-`.repeat(40) + `\n\n`;
+            shapleys[p] = shap;
+        }
+        document.getElementById('python-output').textContent = log;
+        const resultsBody = document.getElementById('results-body');
+        resultsBody.innerHTML = '';
+        let sumPhi = 0;
+        for (let p = 0; p < n; p++) {
+            resultsBody.innerHTML += `<tr><td>参与人 ${getPlayerName(p)}</td><td>${formatNumber(shapleys[p], 4)}</td></tr>`;
+            sumPhi += shapleys[p];
+        }
+        const vN = values['1'.repeat(n)] ?? 0;
+        const diff = sumPhi - vN;
+        resultsBody.innerHTML +=
+        `<tr style="background-color:#f8f8f8;">
+          <td><b>校验</b></td>
+          <td>
+            Sum(φ) = <b>${formatNumber(sumPhi, 4)}</b>；
+            v(N)-v(∅) = <b>${formatNumber(vN, 4)}</b>；
+            差值 = <b>${formatNumber(diff, 4)}</b>
+          </td>
+        </tr>`;
+        document.getElementById('results-table').style.display = 'table';
+    }
+</script>
+</body>
+</html>
